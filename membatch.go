@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func NewMemoryBatch(flushMaxSize int, flushMaxWait time.Duration, callback BatchFn, workerSize int) *Batch {
+func NewMemoryBatch(flushMaxSize int, flushMaxWait time.Duration, callback BatchFn, workerSize int, mode Mode) *Batch {
 	instance := &Batch{
 		maxSize: flushMaxSize,
 		maxWait: flushMaxWait,
@@ -15,6 +15,7 @@ func NewMemoryBatch(flushMaxSize int, flushMaxWait time.Duration, callback Batch
 		mutex: &sync.RWMutex{},
 
 		flushChan: make(chan []interface{}, workerSize),
+		Mode:      mode,
 	}
 	instance.setFlushWorker(workerSize)
 	go instance.runFlushByTime()
@@ -25,18 +26,24 @@ func (b *Batch) Insert(data interface{}) {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 	b.items = append(b.items, data)
-	if len(b.items) >= b.maxSize {
-		b.Flush()
+
+	if b.Mode == FlushBySize || b.Mode == FlushByTimeAndSize {
+		if len(b.items) >= b.maxSize {
+			b.Flush()
+		}
 	}
+
 }
 
 func (b *Batch) runFlushByTime() {
 	for {
 		select {
 		case <-time.Tick(b.maxWait):
-			b.mutex.Lock()
-			b.Flush()
-			b.mutex.Unlock()
+			if b.Mode == FlushByTime || b.Mode == FlushByTimeAndSize {
+				b.mutex.Lock()
+				b.Flush()
+				b.mutex.Unlock()
+			}
 		}
 	}
 }
