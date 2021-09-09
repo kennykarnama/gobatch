@@ -5,6 +5,14 @@ import (
 	"time"
 )
 
+type Mode int
+
+const (
+	FlushByTimeAndSize Mode = iota
+	FlushByTime
+	FlushBySize
+)
+
 type BatchFn func(workerID int, datas []interface{})
 type Batch struct {
 	maxSize int
@@ -16,4 +24,5 @@ type Batch struct {
 
 	/*notifier channel*/
 	flushChan chan []interface{}
+	Mode      Mode
 }
